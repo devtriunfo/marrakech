@@ -12,18 +12,16 @@ export function HeroSection({ onExploreClick }: HeroSectionProps) {
   return (
     <section className="relative min-h-[70vh] md:min-h-[75vh] flex items-center justify-center overflow-hidden">
       {/* Background Video */}
-      <div className="absolute inset-0 bg-black flex items-center justify-center overflow-hidden">
-        <div className="relative w-full h-full max-w-full aspect-[16/9] max-h-screen">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover object-center"
-          >
-            <source src="/hero-video.mp4" type="video/mp4" />
-          </video>
-        </div>
+      <div className="absolute inset-0 bg-black overflow-hidden">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        >
+          <source src="/hero-video.mp4" type="video/mp4" />
+        </video>
         {/* Dark overlay for better text readability */}
         <div className="absolute inset-0 bg-black/50" />
       </div>
