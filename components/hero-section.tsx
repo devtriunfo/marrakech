@@ -45,7 +45,7 @@ export function HeroSection({ onExploreClick }: HeroSectionProps) {
 
           <div className="flex items-center justify-center gap-4 mb-8">
             <div className="h-px w-16 bg-primary/50" />
-            <span className="text-primary text-sm tracking-widest uppercase">Desde 2020</span>
+            <span className="text-primary text-sm tracking-widest uppercase">Desde 2019</span>
             <div className="h-px w-16 bg-primary/50" />
           </div>
 
