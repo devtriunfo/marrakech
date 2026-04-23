@@ -10,23 +10,25 @@ type HeroSectionProps = {
 
 export function HeroSection({ onExploreClick }: HeroSectionProps) {
   return (
-    <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-[70vh] md:min-h-[75vh] flex items-center justify-center overflow-hidden">
       {/* Background Video */}
-      <div className="absolute inset-0">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover object-center"
-        >
-          <source src="/hero-video.mp4" type="video/mp4" />
-        </video>
+      <div className="absolute inset-0 bg-black flex items-center justify-center overflow-hidden">
+        <div className="relative w-full h-full max-w-full aspect-[16/9] max-h-screen">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          >
+            <source src="/hero-video.mp4" type="video/mp4" />
+          </video>
+        </div>
         {/* Dark overlay for better text readability */}
         <div className="absolute inset-0 bg-black/50" />
       </div>
 
-      <div className="container mx-auto px-4 py-16 relative z-10">
+      <div className="container mx-auto px-4 py-16 md:py-20 relative z-10">
         <div className="max-w-3xl mx-auto text-center">
           <div className="mb-8">
             <Image
