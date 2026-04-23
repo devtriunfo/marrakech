@@ -14,8 +14,11 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'Marrakech Tabacaria | Produtos Premium',
+  title: 'Marrakech Tabacaria',
   description: 'Tabacaria Marrakech - Sua loja de produtos premium para fumo. Sedas, piteiras, narguiles, tabacos e muito mais.',
+  icons: {
+    icon: '/image.jpg',
+  },
 }
 
 export default function RootLayout({
