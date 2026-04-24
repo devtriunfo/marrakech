@@ -16,15 +16,22 @@ const supabaseAdmin = createClient(
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+    const payload = {
+      ...body,
+      barcode: body?.barcode?.trim() || null,
+    }
 
     const { data, error } = await supabaseAdmin
       .from("products")
-      .insert(body)
+      .insert(payload)
       .select()
       .single()
 
     if (error) {
       console.error("[v0] Erro ao criar produto:", error)
+      if (error.code === "23505" && error.message.toLowerCase().includes("barcode")) {
+        return NextResponse.json({ error: "Já existe um produto com esse código de barras" }, { status: 409 })
+      }
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 

@@ -48,6 +48,10 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
+    const payload = {
+      ...body,
+      barcode: body?.barcode?.trim() || null,
+    }
 
     if (!id) {
       return NextResponse.json({ error: "ID do produto não fornecido" }, { status: 400 })
@@ -55,11 +59,14 @@ export async function PUT(
 
     const { error } = await supabaseAdmin
       .from("products")
-      .update(body)
+      .update(payload)
       .eq("id", id)
 
     if (error) {
       console.error("[v0] Erro ao atualizar produto:", error)
+      if (error.code === "23505" && error.message.toLowerCase().includes("barcode")) {
+        return NextResponse.json({ error: "Já existe um produto com esse código de barras" }, { status: 409 })
+      }
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 

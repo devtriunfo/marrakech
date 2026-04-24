@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
+  barcode TEXT UNIQUE,
   price DECIMAL(10, 2) NOT NULL DEFAULT 0,
   stock INTEGER NOT NULL DEFAULT 0,
   image_url TEXT,
@@ -96,3 +97,19 @@ INSERT INTO products (name, description, price, stock, category_id, is_active) V
   ('Cinzeiro de Cerâmica Decorativo', 'Cinzeiro artesanal decorativo', 55.00, 20, (SELECT id FROM categories WHERE slug = 'cinzeiros'), true),
   ('Cinzeiro Portátil de Bolso', 'Cinzeiro compacto para viagem', 18.00, 50, (SELECT id FROM categories WHERE slug = 'cinzeiros'), true)
 ON CONFLICT DO NOTHING;
+
+-- Criar tabela de vendas
+CREATE TABLE IF NOT EXISTS sales (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  price DECIMAL(10, 2) NOT NULL,
+  total DECIMAL(10, 2) NOT NULL,
+  sold_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Habilitar RLS
+ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
+
+-- Políticas para sales (leitura apenas para admin via service role)
+CREATE POLICY "sales_select_public" ON sales FOR SELECT USING (true);

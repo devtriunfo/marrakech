@@ -49,7 +49,11 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
   const router = useRouter()
 
   const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase())
+    const normalizedSearch = search.toLowerCase().trim()
+    const matchesSearch =
+      normalizedSearch.length === 0 ||
+      product.name.toLowerCase().includes(normalizedSearch) ||
+      (product.barcode || "").toLowerCase().includes(normalizedSearch)
     const matchesCategory = categoryFilter === "all" || product.category_id === categoryFilter
     return matchesSearch && matchesCategory
   })
@@ -94,7 +98,7 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar produtos..."
+            placeholder="Buscar por nome ou código de barras..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -121,6 +125,7 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
             <TableRow>
               <TableHead className="w-[80px]">Imagem</TableHead>
               <TableHead>Nome</TableHead>
+              <TableHead>Código de Barras</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead className="text-right">Preço</TableHead>
               <TableHead className="text-center">Estoque</TableHead>
@@ -130,7 +135,7 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
           <TableBody>
             {filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center">
+                <TableCell colSpan={7} className="h-32 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Package className="h-8 w-8" />
                     <span>Nenhum produto encontrado</span>
@@ -156,6 +161,13 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell>
+                    {product.barcode ? (
+                      <span className="font-mono text-xs">{product.barcode}</span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {categories.find(c => c.id === product.category_id)?.name || '-'}
                   </TableCell>

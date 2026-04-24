@@ -28,6 +28,7 @@ interface ProductFormProps {
 export function ProductForm({ product, categories }: ProductFormProps) {
   const [name, setName] = useState(product?.name || "")
   const [description, setDescription] = useState(product?.description || "")
+  const [barcode, setBarcode] = useState(product?.barcode || "")
   const [price, setPrice] = useState(product?.price || "")
   const [stock, setStock] = useState(product?.stock?.toString() || "0")
   const [categoryId, setCategoryId] = useState(product?.category_id || "")
@@ -79,6 +80,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       const productData = {
         name,
         description: description || null,
+        barcode: barcode.trim() || null,
         price,
         stock: parseInt(stock) || 0,
         category_id: categoryId || null,
@@ -153,6 +155,19 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                   placeholder="Descrição detalhada do produto..."
                   rows={4}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="barcode">Código de Barras</Label>
+                <Input
+                  id="barcode"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  placeholder="Ex: 7891234567890"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Você pode usar o leitor no campo para preencher automaticamente.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
