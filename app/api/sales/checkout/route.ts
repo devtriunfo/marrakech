@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const productIds = items.map((item) => item.productId)
     const { data: products, error: productsError } = await supabase
       .from("products")
-      .select("id, name, stock, price, cost_price")
+      .select("id, name, stock, price")
       .in("id", productIds)
 
     if (productsError) {
@@ -76,36 +76,28 @@ export async function POST(request: Request) {
       )
     }
 
-    // Preparar itens da venda com informacoes de custo
-    const saleItems = items.map((item) => {
-      const product = products?.find((p) => p.id === item.productId)
-      const costPrice = product?.cost_price ? parseFloat(product.cost_price) : 0
-      return {
-        product_id: item.productId,
-        product_name: item.productName,
-        barcode: item.barcode,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        cost_price: costPrice,
-        subtotal: item.subtotal,
-      }
+    // Criar uma venda para cada item (estrutura simples que funciona com a tabela existente)
+    const salesPromises = items.map(async (item) => {
+      const { data, error } = await supabase
+        .from("sales")
+        .insert({
+          product_id: item.productId,
+          product_name: item.productName,
+          barcode: item.barcode,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          total: item.subtotal,
+          payment_method: paymentMethod,
+          sold_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
+      
+      return { data, error }
     })
 
-    // Criar a venda com items como JSONB
-    const { data: sale, error: saleError } = await supabase
-      .from("sales")
-      .insert({
-        items: saleItems,
-        payment_method: paymentMethod,
-        discount: discount,
-        subtotal: subtotal,
-        total: total,
-        notes: notes || null,
-        customer_name: customerName || null,
-        sold_at: new Date().toISOString(),
-      })
-      .select()
-      .single()
+    const salesResults = await Promise.all(salesPromises)
+    const saleError = salesResults.find(r => r.error)?.error
 
     if (saleError) {
       console.error("[v0] Erro ao criar venda:", saleError)
@@ -116,11 +108,11 @@ export async function POST(request: Request) {
     }
 
     // Atualizar estoque dos produtos
-    const stockUpdates = items.map(async (item) => {
+    for (const item of items) {
       const product = products?.find((p) => p.id === item.productId)
       if (product) {
         const newStock = product.stock - item.quantity
-        return supabase
+        await supabase
           .from("products")
           .update({ 
             stock: newStock,
@@ -128,15 +120,12 @@ export async function POST(request: Request) {
           })
           .eq("id", item.productId)
       }
-    })
-
-    await Promise.all(stockUpdates)
+    }
 
     return NextResponse.json({
       success: true,
       message: "Venda finalizada com sucesso",
       sale: {
-        id: sale.id,
         total: total,
         paymentMethod: paymentMethod,
         itemCount: items.length,
