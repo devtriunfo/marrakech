@@ -4,24 +4,57 @@ import { PDV } from "@/components/admin/pdv"
 export default async function VendasPage() {
   const supabase = await createClient()
 
-  // Buscar produtos da tabela produtos
-  const { data: produtosRaw, error } = await supabase
-    .from("produtos")
+  const { data: productsRaw, error } = await supabase
+    .from("products")
     .select("*")
-    .order("nome")
+    .order("name")
 
-  // Mapear os campos para o formato esperado pelo componente PDV
-  const products = produtosRaw?.map((p) => ({
-    id: p.id,
-    name: p.nome || "",
-    description: p.descricao || "",
-    barcode: null, // tabela nao tem coluna de codigo de barras
-    price: String(p.preco || 0),
-    stock: p.estoque || 0,
-    image_url: p.url_da_imagem || null,
-    category_id: p.categoria_id || null,
-    is_active: p.e_ativo ?? true,
-  })) || []
+  if (error?.code && error.code !== "PGRST205") {
+    throw error
+  }
+
+  const legacyProductsRaw = !productsRaw && error?.code === "PGRST205"
+    ? await supabase
+        .from("produtos")
+        .select("*")
+        .order("nome")
+    : null
+
+  if (legacyProductsRaw?.error) {
+    throw legacyProductsRaw.error
+  }
+
+  const products = productsRaw
+    ? productsRaw.map((product) => ({
+        id: product.id,
+        name: product.name || "",
+        description: product.description || "",
+        barcode: product.barcode || null,
+        price: String(product.price || 0),
+        cost_price: product.cost_price || null,
+        stock: product.stock || 0,
+        min_stock: product.min_stock || null,
+        image_url: product.image_url || null,
+        category_id: product.category_id || null,
+        is_active: product.is_active ?? true,
+        created_at: product.created_at || "",
+        updated_at: product.updated_at || "",
+      }))
+    : (legacyProductsRaw?.data?.map((product) => ({
+        id: product.id,
+        name: product.nome || "",
+        description: product.descricao || "",
+        barcode: null,
+        price: String(product.preco || 0),
+        cost_price: null,
+        stock: product.estoque || 0,
+        min_stock: null,
+        image_url: product.url_da_imagem || null,
+        category_id: product.categoria_id || null,
+        is_active: product.e_ativo ?? true,
+        created_at: product.criado_em || "",
+        updated_at: product.atualizado_em || "",
+      })) || [])
 
   return (
     <div className="space-y-6">

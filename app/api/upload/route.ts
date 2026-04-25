@@ -1,4 +1,6 @@
 import { put } from '@vercel/blob'
+import { mkdir, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import { type NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -23,15 +25,29 @@ export async function POST(request: NextRequest) {
 
     // Gerar nome único para o arquivo
     const timestamp = Date.now()
-    const extension = file.name.split('.').pop()
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'bin'
     const filename = `produtos/${timestamp}.${extension}`
 
-    // Upload para Vercel Blob (público)
-    const blob = await put(filename, file, {
-      access: 'public',
-    })
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const blob = await put(filename, file, {
+        access: 'public',
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      })
 
-    return NextResponse.json({ url: blob.url })
+      return NextResponse.json({ url: blob.url })
+    }
+
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+    const relativeDir = path.join('uploads', 'produtos')
+    const uploadDir = path.join(process.cwd(), 'public', relativeDir)
+    const localFilename = `${timestamp}-${crypto.randomUUID()}.${extension}`
+    const localFilePath = path.join(uploadDir, localFilename)
+
+    await mkdir(uploadDir, { recursive: true })
+    await writeFile(localFilePath, buffer)
+
+    return NextResponse.json({ url: `/${relativeDir.replace(/\\/g, '/')}/${localFilename}` })
   } catch (error) {
     console.error('Erro no upload:', error)
     return NextResponse.json({ error: 'Falha no upload' }, { status: 500 })

@@ -3,6 +3,8 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
+import type { AdminPermissions } from "@/lib/admin-auth"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -21,23 +23,32 @@ import { useState } from "react"
 
 interface AdminSidebarProps {
   userEmail: string
+  permissions?: AdminPermissions
 }
 
-const navItems = [
+interface NavItem {
+  href: string
+  label: string
+  icon: typeof LayoutDashboard
+  requiresReportsAccess?: boolean
+}
+
+const navItems: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/produtos", label: "Produtos", icon: Package },
   { href: "/admin/categorias", label: "Categorias", icon: Tags },
   { href: "/admin/vendas", label: "Vendas", icon: ShoppingCart },
-  { href: "/admin/relatorios", label: "Relatorios", icon: BarChart3 },
+  { href: "/admin/relatorios", label: "Relatorios", icon: BarChart3, requiresReportsAccess: true },
 ]
 
-export function AdminSidebar({ userEmail }: AdminSidebarProps) {
+export function AdminSidebar({ userEmail, permissions }: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const handleLogout = () => {
-    localStorage.removeItem("admin_session")
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
     router.push("/admin/login")
     router.refresh()
   }
@@ -59,7 +70,9 @@ export function AdminSidebar({ userEmail }: AdminSidebarProps) {
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
+        {navItems
+          .filter((item) => !item.requiresReportsAccess || permissions?.canViewReports)
+          .map((item) => {
           const isActive = pathname === item.href || 
             (item.href !== "/admin" && pathname.startsWith(item.href))
           return (

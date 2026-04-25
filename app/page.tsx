@@ -1,9 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
+import { hasSupabaseConfig } from '@/lib/supabase/config'
 import { StoreContent } from '@/components/store-content'
 
 export const revalidate = 60 // Revalidate every 60 seconds
 
 export default async function Home() {
+  if (!hasSupabaseConfig()) {
+    return <StoreContent initialProducts={[]} initialCategories={[]} />
+  }
+
   const supabase = await createClient()
   
   const { data: products } = await supabase

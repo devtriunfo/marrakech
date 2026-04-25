@@ -1,7 +1,8 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,10 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Lock } from "lucide-react"
 import Image from "next/image"
-
-// Credenciais fixas do admin
-const ADMIN_EMAIL = "marrakech@dev.com"
-const ADMIN_PASSWORD = "Lucasdev1"
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
@@ -26,23 +23,17 @@ export default function AdminLoginPage() {
     setError(null)
     setLoading(true)
 
-    // Simular delay de autenticação
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const supabase = createClient()
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      // Salvar sessão no localStorage
-      localStorage.setItem("admin_session", JSON.stringify({
-        email: ADMIN_EMAIL,
-        loggedIn: true,
-        timestamp: Date.now()
-      }))
-      router.push("/admin")
-      router.refresh()
-    } else {
+    if (authError) {
       setError("Email ou senha incorretos")
+      setLoading(false)
+      return
     }
-    
-    setLoading(false)
+
+    router.push("/admin")
+    router.refresh()
   }
 
   return (
@@ -64,7 +55,7 @@ export default function AdminLoginPage() {
               Painel Administrativo
             </CardTitle>
             <CardDescription className="text-muted-foreground">
-              Faça login para gerenciar seus produtos
+              Faca login para gerenciar seus produtos
             </CardDescription>
           </div>
         </CardHeader>
@@ -75,7 +66,7 @@ export default function AdminLoginPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -88,7 +79,7 @@ export default function AdminLoginPage() {
                 className="bg-card border-border"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
               <Input
@@ -101,9 +92,9 @@ export default function AdminLoginPage() {
                 className="bg-card border-border"
               />
             </div>
-            
-            <Button 
-              type="submit" 
+
+            <Button
+              type="submit"
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={loading}
             >
@@ -117,10 +108,10 @@ export default function AdminLoginPage() {
               )}
             </Button>
           </form>
-          
+
           <div className="mt-6 text-center">
-            <a 
-              href="/" 
+            <a
+              href="/"
               className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
               Voltar para a loja

@@ -7,7 +7,8 @@ interface SaleItem {
   barcode: string | null
   quantity: number
   unitPrice: number
-  subtotal: number
+  subtotal?: number
+  total?: number
 }
 
 interface CheckoutRequest {
@@ -18,6 +19,62 @@ interface CheckoutRequest {
   total: number
   notes?: string
   customerName?: string
+}
+
+interface NormalizedProduct {
+  id: string
+  name: string
+  stock: number
+  price: number
+}
+
+function isMissingTableError(error: { code?: string } | null) {
+  return error?.code === "PGRST205"
+}
+
+async function loadProducts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  productIds: string[],
+) {
+  const { data: products, error } = await supabase
+    .from("products")
+    .select("id, name, stock, price")
+    .in("id", productIds)
+
+  if (!error) {
+    return {
+      schema: "current" as const,
+      products: (products || []).map((product) => ({
+        id: String(product.id),
+        name: String(product.name ?? ""),
+        stock: Number(product.stock ?? 0),
+        price: Number(product.price ?? 0),
+      })) satisfies NormalizedProduct[],
+    }
+  }
+
+  if (!isMissingTableError(error)) {
+    throw error
+  }
+
+  const { data: legacyProducts, error: legacyError } = await supabase
+    .from("produtos")
+    .select("id, nome, estoque, preco")
+    .in("id", productIds)
+
+  if (legacyError) {
+    throw legacyError
+  }
+
+  return {
+    schema: "legacy" as const,
+    products: (legacyProducts || []).map((product) => ({
+      id: String(product.id),
+      name: String(product.nome ?? ""),
+      stock: Number(product.estoque ?? 0),
+      price: Number(product.preco ?? 0),
+    })) satisfies NormalizedProduct[],
+  }
 }
 
 export async function POST(request: Request) {
@@ -43,12 +100,11 @@ export async function POST(request: Request) {
 
     // Verificar estoque de todos os produtos
     const productIds = items.map((item) => item.productId)
-    const { data: products, error: productsError } = await supabase
-      .from("produtos")
-      .select("id, nome, estoque, preco")
-      .in("id", productIds)
+    let productState: Awaited<ReturnType<typeof loadProducts>>
 
-    if (productsError) {
+    try {
+      productState = await loadProducts(supabase, productIds)
+    } catch (productsError) {
       console.error("[v0] Erro ao buscar produtos:", productsError)
       return NextResponse.json(
         { error: "Erro ao verificar estoque" },
@@ -56,15 +112,17 @@ export async function POST(request: Request) {
       )
     }
 
+    const { schema, products } = productState
+
     // Verificar se ha estoque suficiente
     const stockIssues: string[] = []
     for (const item of items) {
       const product = products?.find((p) => p.id === item.productId)
       if (!product) {
         stockIssues.push(`Produto ${item.productName} nao encontrado`)
-      } else if (product.estoque < item.quantity) {
+      } else if (product.stock < item.quantity) {
         stockIssues.push(
-          `${item.productName}: estoque insuficiente (disponivel: ${product.estoque}, solicitado: ${item.quantity})`
+          `${item.productName}: estoque insuficiente (disponivel: ${product.stock}, solicitado: ${item.quantity})`
         )
       }
     }
@@ -76,51 +134,95 @@ export async function POST(request: Request) {
       )
     }
 
-    // Criar uma venda para cada item usando a estrutura correta da tabela vendas
-    const salesPromises = items.map(async (item) => {
-      const { data, error } = await supabase
-        .from("vendas")
+    let saleNumber: number | null = null
+
+    if (schema === "current") {
+      const itemsPayload = items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        barcode: item.barcode,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.subtotal ?? item.total ?? item.unitPrice * item.quantity,
+      }))
+
+      const { data: saleRow, error: saleError } = await supabase
+        .from("sales")
         .insert({
-          id_do_produto: item.productId,
-          quantidade: item.quantity,
-          preco: item.unitPrice,
-          total: item.subtotal,
-          vendido_em: new Date().toISOString(),
+          items: itemsPayload,
+          subtotal,
+          discount,
+          total,
+          payment_method: paymentMethod,
+          customer_name: customerName || null,
+          notes: notes || null,
+          sold_at: new Date().toISOString(),
         })
-        .select()
+        .select("sale_number")
         .single()
-      
-      return { data, error }
-    })
 
-    const salesResults = await Promise.all(salesPromises)
-    const saleError = salesResults.find(r => r.error)?.error
+      if (saleError) {
+        console.error("[v0] Erro ao criar venda:", saleError)
+        return NextResponse.json(
+          { error: "Erro ao registrar venda: " + saleError.message },
+          { status: 500 }
+        )
+      }
 
-    if (saleError) {
-      console.error("[v0] Erro ao criar venda:", saleError)
-      return NextResponse.json(
-        { error: "Erro ao registrar venda: " + saleError.message },
-        { status: 500 }
-      )
+      saleNumber = saleRow?.sale_number ?? null
+    } else {
+      const salesPromises = items.map(async (item) => {
+        const { data, error } = await supabase
+          .from("vendas")
+          .insert({
+            id_do_produto: item.productId,
+            quantidade: item.quantity,
+            preco: item.unitPrice,
+            total: item.subtotal ?? item.total ?? item.unitPrice * item.quantity,
+            vendido_em: new Date().toISOString(),
+          })
+          .select()
+          .single()
+
+        return { data, error }
+      })
+
+      const salesResults = await Promise.all(salesPromises)
+      const saleError = salesResults.find((result) => result.error)?.error
+
+      if (saleError) {
+        console.error("[v0] Erro ao criar venda:", saleError)
+        return NextResponse.json(
+          { error: "Erro ao registrar venda: " + saleError.message },
+          { status: 500 }
+        )
+      }
     }
 
     // Atualizar estoque dos produtos
     for (const item of items) {
       const product = products?.find((p) => p.id === item.productId)
       if (product) {
-        const newStock = product.estoque - item.quantity
-        await supabase
-          .from("produtos")
-          .update({ 
-            estoque: newStock,
-          })
-          .eq("id", item.productId)
+        const newStock = product.stock - item.quantity
+
+        if (schema === "current") {
+          await supabase
+            .from("products")
+            .update({ stock: newStock })
+            .eq("id", item.productId)
+        } else {
+          await supabase
+            .from("produtos")
+            .update({ estoque: newStock })
+            .eq("id", item.productId)
+        }
       }
     }
 
     return NextResponse.json({
       success: true,
       message: "Venda finalizada com sucesso",
+      saleNumber,
       sale: {
         total: total,
         paymentMethod: paymentMethod,
