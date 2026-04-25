@@ -88,7 +88,8 @@ function formatPrice(value: number): string {
   }).format(value)
 }
 
-function formatPercent(value: number): string {
+function formatPercent(value: number | undefined | null): string {
+  if (value === undefined || value === null || isNaN(value)) return "0.0%"
   return `${value.toFixed(1)}%`
 }
 

@@ -176,28 +176,50 @@ export async function GET() {
       ? ((totalProfit / totalRevenue) * 100).toFixed(1) 
       : "0"
 
+    // Formatar produtos para o componente
+    const formatProduct = (p: typeof productList[0]) => ({
+      product_id: p.id,
+      product_name: p.name,
+      barcode: null,
+      total_quantity: p.totalSold,
+      total_revenue: p.totalRevenue,
+      total_cost: p.totalCost,
+      total_profit: p.totalProfit,
+      profit_margin: p.totalRevenue > 0 ? (p.totalProfit / p.totalRevenue) * 100 : 0,
+      avg_unit_price: p.averagePrice,
+    })
+
+    // Formatar vendas por forma de pagamento
+    const byPaymentMethod = Object.entries(salesByPaymentMethod).map(([method, data]) => ({
+      payment_method: method,
+      count: data.count,
+      total: data.total,
+    }))
+
+    const avgTicket = (sales?.length || 0) > 0 ? totalRevenue / (sales?.length || 1) : 0
+
     return NextResponse.json({
       success: true,
       data: {
         summary: {
-          totalRevenue,
-          totalCost,
-          totalProfit,
-          profitMargin: parseFloat(profitMargin),
-          totalItemsSold,
-          totalSales: sales?.length || 0,
-          totalInventoryValue,
-          totalInventoryCost,
+          total_sales: sales?.length || 0,
+          total_revenue: totalRevenue,
+          total_cost: totalCost,
+          total_profit: totalProfit,
+          profit_margin: parseFloat(profitMargin),
+          avg_ticket: avgTicket,
+          total_products_sold: totalItemsSold,
         },
-        topSellingProducts,
-        leastSellingProducts,
-        mostProfitableProducts,
-        leastProfitableProducts,
-        salesByPaymentMethod,
-        salesByDay: Object.entries(last30Days).map(([date, data]) => ({
-          date,
-          ...data,
-        })),
+        top_selling: topSellingProducts.map(formatProduct),
+        least_selling: leastSellingProducts.map(formatProduct),
+        most_profitable: mostProfitableProducts.map(formatProduct),
+        least_profitable: leastProfitableProducts.map(formatProduct),
+        by_payment_method: byPaymentMethod,
+        inventory_value: {
+          total_stock_value: totalInventoryValue,
+          total_cost_value: totalInventoryCost,
+          potential_profit: totalInventoryValue - totalInventoryCost,
+        },
       },
     })
   } catch (error) {
