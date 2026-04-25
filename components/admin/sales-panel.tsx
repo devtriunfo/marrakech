@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { AlertCircle, Barcode, Package, Plus, Search, Trash2 } from "lucide-react"
+import { AlertCircle, Barcode, CheckCircle2, ExternalLink, Package, Plus, Search, Trash2 } from "lucide-react"
+import Link from "next/link"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -34,6 +35,11 @@ export function SalesPanel({ products }: SalesPanelProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [lastSale, setLastSale] = useState<{
+    items: SaleItem[]
+    total: number
+    date: Date
+  } | null>(null)
 
   const availableProducts = useMemo(
     () => products.filter((product) => product.is_active),
@@ -151,9 +157,16 @@ export function SalesPanel({ products }: SalesPanelProps) {
         throw new Error(data.error || "Não foi possível finalizar a venda")
       }
 
+      // Salvar última venda para exibir resumo
+      setLastSale({
+        items: [...items],
+        total: totalValue,
+        date: new Date(),
+      })
+
       setItems([])
       setSuccess(
-        data.warning || "Venda finalizada com sucesso e estoque atualizado"
+        data.warning || "Venda finalizada com sucesso! Estoque atualizado e registrado no controle de vendas."
       )
     } catch (requestError) {
       setError(
@@ -252,9 +265,61 @@ export function SalesPanel({ products }: SalesPanelProps) {
           )}
 
           {success && (
-            <Alert>
-              <AlertDescription>{success}</AlertDescription>
+            <Alert className="border-green-500 bg-green-50 dark:bg-green-950/20">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="flex flex-col gap-2">
+                <span>{success}</span>
+                <Link 
+                  href="/admin/controle-vendas" 
+                  className="inline-flex items-center gap-1 text-sm font-medium text-green-700 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                >
+                  Ver no Controle de Vendas
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </AlertDescription>
             </Alert>
+          )}
+
+          {lastSale && (
+            <Card className="border-green-200 dark:border-green-800">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between text-base">
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    Ultima Venda Finalizada
+                  </span>
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {lastSale.date.toLocaleString("pt-BR")}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  {lastSale.items.map((item) => (
+                    <div key={item.product.id} className="flex items-center justify-between text-sm">
+                      <span>{item.product.name} x{item.quantity}</span>
+                      <span className="font-medium">
+                        {formatPrice(parsePrice(item.product.price) * item.quantity)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t pt-2 flex items-center justify-between">
+                  <span className="font-semibold">Total da Venda</span>
+                  <span className="text-lg font-bold text-green-600">
+                    {formatPrice(lastSale.total)}
+                  </span>
+                </div>
+                <div className="pt-2">
+                  <Link href="/admin/controle-vendas">
+                    <Button variant="outline" className="w-full" size="sm">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Ver Todas as Vendas no Controle
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 

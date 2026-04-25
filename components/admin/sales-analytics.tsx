@@ -4,7 +4,9 @@ import { useEffect, useState } from "react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, TrendingUp, TrendingDown, CalendarRange } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { AlertCircle, TrendingUp, TrendingDown, CalendarRange, Clock, ShoppingCart, Receipt, RefreshCw } from "lucide-react"
 
 interface ProductSale {
   productId: string
@@ -63,30 +65,36 @@ export function SalesAnalytics() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [warning, setWarning] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const fetchAnalytics = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
+      const response = await fetch("/api/sales/analytics")
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erro ao buscar vendas")
+      }
+
+      setData(result.data)
+      setWarning(result.warning || null)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao carregar dados de vendas")
+      setData(null)
+      setWarning(null)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch("/api/sales/analytics")
-        const result = await response.json()
-
-        if (!response.ok) {
-          throw new Error(result.error || "Erro ao buscar vendas")
-        }
-
-        setData(result.data)
-        setWarning(result.warning || null)
-        setError(null)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro ao carregar dados de vendas")
-        setData(null)
-        setWarning(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchAnalytics()
   }, [])
 
@@ -136,6 +144,18 @@ export function SalesAnalytics() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-end">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => fetchAnalytics(true)}
+          disabled={refreshing}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Atualizando..." : "Atualizar Dados"}
+        </Button>
+      </div>
+
       {warning && (
         <Alert>
           <AlertDescription>{warning}</AlertDescription>
@@ -430,29 +450,75 @@ export function SalesAnalytics() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Controle de Cada Venda</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5" />
+            Historico de Vendas
+            {data.salesRecords.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {data.salesRecords.length} registro{data.salesRecords.length !== 1 ? "s" : ""}
+              </Badge>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {data.salesRecords.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Nenhuma venda registrada.</div>
+            <div className="rounded-lg border border-dashed p-8 text-center">
+              <ShoppingCart className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+              <p className="text-muted-foreground font-medium">Nenhuma venda registrada ainda</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                As vendas finalizadas na aba Vendas aparecerao aqui automaticamente.
+              </p>
+            </div>
           ) : (
-            <div className="space-y-2">
-              {data.salesRecords.slice(0, 50).map((sale) => (
-                <div key={sale.id} className="rounded-lg border p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-medium">{sale.productName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(sale.soldAt).toLocaleString("pt-BR")}
-                    </p>
+            <div className="space-y-3">
+              {data.salesRecords.slice(0, 50).map((sale, index) => {
+                const isRecent = new Date().getTime() - new Date(sale.soldAt).getTime() < 3600000 // 1 hora
+                return (
+                  <div 
+                    key={sale.id} 
+                    className={`rounded-lg border p-4 transition-colors hover:bg-accent/50 ${isRecent ? "border-green-300 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20" : ""}`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold">{sale.productName}</p>
+                          {isRecent && (
+                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                              <Clock className="mr-1 h-3 w-3" />
+                              Recente
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Codigo: {sale.barcode || "Nao cadastrado"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary">
+                          {formatCurrency(sale.total)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(sale.soldAt).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground border-t pt-3">
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium text-foreground">{sale.quantity}x</span> unidade{sale.quantity !== 1 ? "s" : ""}
+                      </span>
+                      <span>|</span>
+                      <span>
+                        Preco unitario: <span className="font-medium text-foreground">{formatCurrency(sale.unitPrice)}</span>
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Código: {sale.barcode || "Não cadastrado"}
-                  </p>
-                  <p className="text-sm mt-2">
-                    Quantidade: {sale.quantity} | Unitário: {formatCurrency(sale.unitPrice)} | Total: {formatCurrency(sale.total)}
-                  </p>
-                </div>
-              ))}
+                )
+              })}
+              {data.salesRecords.length > 50 && (
+                <p className="text-center text-sm text-muted-foreground pt-2">
+                  Exibindo as 50 vendas mais recentes de {data.salesRecords.length} total.
+                </p>
+              )}
             </div>
           )}
         </CardContent>
