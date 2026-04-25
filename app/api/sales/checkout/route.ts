@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     if (!paymentMethod) {
       return NextResponse.json(
-        { error: "Forma de pagamento não informada" },
+        { error: "Forma de pagamento nao informada" },
         { status: 400 }
       )
     }
@@ -45,25 +45,26 @@ export async function POST(request: Request) {
     const productIds = items.map((item) => item.productId)
     const { data: products, error: productsError } = await supabase
       .from("products")
-      .select("id, name, stock, price")
+      .select("id, name, stock, price, cost_price")
       .in("id", productIds)
 
     if (productsError) {
+      console.error("[v0] Erro ao buscar produtos:", productsError)
       return NextResponse.json(
         { error: "Erro ao verificar estoque" },
         { status: 500 }
       )
     }
 
-    // Verificar se há estoque suficiente
+    // Verificar se ha estoque suficiente
     const stockIssues: string[] = []
     for (const item of items) {
       const product = products?.find((p) => p.id === item.productId)
       if (!product) {
-        stockIssues.push(`Produto ${item.productName} não encontrado`)
+        stockIssues.push(`Produto ${item.productName} nao encontrado`)
       } else if (product.stock < item.quantity) {
         stockIssues.push(
-          `${item.productName}: estoque insuficiente (disponível: ${product.stock}, solicitado: ${item.quantity})`
+          `${item.productName}: estoque insuficiente (disponivel: ${product.stock}, solicitado: ${item.quantity})`
         )
       }
     }
@@ -75,51 +76,41 @@ export async function POST(request: Request) {
       )
     }
 
-    // Criar a venda principal
+    // Preparar itens da venda com informacoes de custo
+    const saleItems = items.map((item) => {
+      const product = products?.find((p) => p.id === item.productId)
+      const costPrice = product?.cost_price ? parseFloat(product.cost_price) : 0
+      return {
+        product_id: item.productId,
+        product_name: item.productName,
+        barcode: item.barcode,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        cost_price: costPrice,
+        subtotal: item.subtotal,
+      }
+    })
+
+    // Criar a venda com items como JSONB
     const { data: sale, error: saleError } = await supabase
       .from("sales")
       .insert({
+        items: saleItems,
         payment_method: paymentMethod,
         discount: discount,
         subtotal: subtotal,
         total: total,
         notes: notes || null,
         customer_name: customerName || null,
-        status: "completed",
         sold_at: new Date().toISOString(),
       })
       .select()
       .single()
 
     if (saleError) {
-      console.error("Erro ao criar venda:", saleError)
+      console.error("[v0] Erro ao criar venda:", saleError)
       return NextResponse.json(
-        { error: "Erro ao registrar venda" },
-        { status: 500 }
-      )
-    }
-
-    // Criar os itens da venda
-    const saleItems = items.map((item) => ({
-      sale_id: sale.id,
-      product_id: item.productId,
-      product_name: item.productName,
-      barcode: item.barcode,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-      subtotal: item.subtotal,
-    }))
-
-    const { error: itemsError } = await supabase
-      .from("sale_items")
-      .insert(saleItems)
-
-    if (itemsError) {
-      console.error("Erro ao criar itens da venda:", itemsError)
-      // Reverter a venda principal
-      await supabase.from("sales").delete().eq("id", sale.id)
-      return NextResponse.json(
-        { error: "Erro ao registrar itens da venda" },
+        { error: "Erro ao registrar venda: " + saleError.message },
         { status: 500 }
       )
     }
@@ -128,9 +119,13 @@ export async function POST(request: Request) {
     const stockUpdates = items.map(async (item) => {
       const product = products?.find((p) => p.id === item.productId)
       if (product) {
+        const newStock = product.stock - item.quantity
         return supabase
           .from("products")
-          .update({ stock: product.stock - item.quantity })
+          .update({ 
+            stock: newStock,
+            updated_at: new Date().toISOString()
+          })
           .eq("id", item.productId)
       }
     })
@@ -148,7 +143,7 @@ export async function POST(request: Request) {
       },
     })
   } catch (error) {
-    console.error("Erro no checkout:", error)
+    console.error("[v0] Erro no checkout:", error)
     return NextResponse.json(
       { error: "Erro interno do servidor" },
       { status: 500 }
