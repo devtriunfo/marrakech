@@ -27,7 +27,6 @@ const navItems = [
   { href: "/admin/produtos", label: "Produtos", icon: Package },
   { href: "/admin/categorias", label: "Categorias", icon: Tags },
   { href: "/admin/vendas", label: "Vendas", icon: ShoppingCart },
-  { href: "/admin/controle-vendas", label: "Controle de Vendas", icon: ShoppingCart },
 ]
 
 export function AdminSidebar({ userEmail }: AdminSidebarProps) {
