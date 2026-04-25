@@ -79,6 +79,7 @@ export function PDV({ products }: PDVProps) {
   const [customerName, setCustomerName] = useState("")
   const [notes, setNotes] = useState("")
   const [discount, setDiscount] = useState<number>(0)
+  const [cashReceived, setCashReceived] = useState<number>(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
   const [lastSaleNumber, setLastSaleNumber] = useState<number | null>(null)
@@ -100,6 +101,7 @@ export function PDV({ products }: PDVProps) {
   }, 0)
 
   const total = subtotal - discount
+  const change = cashReceived > 0 ? cashReceived - total : 0
 
   // Adicionar produto ao carrinho
   const addToCart = (product: Product) => {
@@ -170,6 +172,7 @@ export function PDV({ products }: PDVProps) {
     setCustomerName("")
     setNotes("")
     setPaymentMethod("")
+    setCashReceived(0)
   }
 
   // Finalizar venda
@@ -445,7 +448,15 @@ export function PDV({ products }: PDVProps) {
                     <Label className="text-xs text-muted-foreground">
                       Forma de Pagamento *
                     </Label>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <Select 
+                      value={paymentMethod} 
+                      onValueChange={(value) => {
+                        setPaymentMethod(value)
+                        if (value !== "dinheiro") {
+                          setCashReceived(0)
+                        }
+                      }}
+                    >
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
@@ -461,6 +472,47 @@ export function PDV({ products }: PDVProps) {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Campo de Troco - Apenas para Dinheiro */}
+                  {paymentMethod === "dinheiro" && (
+                    <div className="p-3 rounded-lg bg-secondary/50 border space-y-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">
+                          Valor Recebido (R$)
+                        </Label>
+                        <div className="relative mt-1">
+                          <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0,00"
+                            value={cashReceived || ""}
+                            onChange={(e) => setCashReceived(parseFloat(e.target.value) || 0)}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                      
+                      {cashReceived > 0 && (
+                        <div className={`p-3 rounded-lg ${change >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">
+                              {change >= 0 ? 'Troco a devolver:' : 'Valor insuficiente:'}
+                            </span>
+                            <span className={`text-xl font-bold ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {change >= 0 ? formatPrice(change) : formatPrice(Math.abs(change))}
+                            </span>
+                          </div>
+                          {change < 0 && (
+                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                              Faltam {formatPrice(Math.abs(change))} para completar o valor
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div>
                     <Label className="text-xs text-muted-foreground">
