@@ -30,7 +30,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [description, setDescription] = useState(product?.description || "")
   const [barcode, setBarcode] = useState(product?.barcode || "")
   const [price, setPrice] = useState(product?.price || "")
+  const [costPrice, setCostPrice] = useState(product?.cost_price || "")
   const [stock, setStock] = useState(product?.stock?.toString() || "0")
+  const [minStock, setMinStock] = useState(product?.min_stock?.toString() || "")
   const [categoryId, setCategoryId] = useState(product?.category_id || "")
   const [imageUrl, setImageUrl] = useState(product?.image_url || "")
   const [isActive, setIsActive] = useState(product?.is_active ?? true)
@@ -82,7 +84,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         description: description || null,
         barcode: barcode.trim() || null,
         price,
+        cost_price: costPrice.trim() || null,
         stock: parseInt(stock) || 0,
+        min_stock: minStock ? parseInt(minStock) : null,
         category_id: categoryId || null,
         image_url: imageUrl || null,
         is_active: isActive,
@@ -170,9 +174,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Preço *</Label>
+                  <Label htmlFor="price">Preco de Venda *</Label>
                   <Input
                     id="price"
                     value={price}
@@ -183,7 +187,22 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="stock">Estoque *</Label>
+                  <Label htmlFor="costPrice">Preco de Custo</Label>
+                  <Input
+                    id="costPrice"
+                    value={costPrice}
+                    onChange={(e) => setCostPrice(e.target.value)}
+                    placeholder="15.00"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Valor pago pelo produto (para calcular lucro)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="stock">Estoque Atual *</Label>
                   <Input
                     id="stock"
                     type="number"
@@ -193,6 +212,21 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                     placeholder="0"
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="minStock">Estoque Minimo</Label>
+                  <Input
+                    id="minStock"
+                    type="number"
+                    min="0"
+                    value={minStock}
+                    onChange={(e) => setMinStock(e.target.value)}
+                    placeholder="5"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Alerta quando atingir este valor
+                  </p>
                 </div>
 
                 <div className="space-y-2">
