@@ -11,6 +11,7 @@ import {
   Package,
   Tags,
   ShoppingCart,
+  BarChart3,
   LogOut,
   Store,
   Menu,
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/admin/produtos", label: "Produtos", icon: Package },
   { href: "/admin/categorias", label: "Categorias", icon: Tags },
   { href: "/admin/vendas", label: "Vendas", icon: ShoppingCart },
+  { href: "/admin/relatorios", label: "Relatorios", icon: BarChart3 },
 ]
 
 export function AdminSidebar({ userEmail }: AdminSidebarProps) {
