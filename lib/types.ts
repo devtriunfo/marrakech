@@ -4,7 +4,9 @@ export interface Product {
   description: string | null
   barcode: string | null
   price: string
+  cost_price: string | null
   stock: number
+  min_stock: number | null
   image_url: string | null
   category_id: string | null
   is_active: boolean

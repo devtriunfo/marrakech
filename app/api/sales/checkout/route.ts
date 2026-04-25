@@ -1,114 +1,137 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
-type CheckoutItem = {
+interface SaleItem {
   productId: string
+  productName: string
+  barcode: string | null
   quantity: number
+  unitPrice: number
+  subtotal: number
 }
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-)
+interface CheckoutRequest {
+  items: SaleItem[]
+  paymentMethod: string
+  discount: number
+  subtotal: number
+  total: number
+  notes?: string
+  customerName?: string
+}
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const items = (body?.items || []) as CheckoutItem[]
+    const supabase = await createClient()
+    const body: CheckoutRequest = await request.json()
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: "Nenhum item enviado para a venda" }, { status: 400 })
+    const { items, paymentMethod, discount, subtotal, total, notes, customerName } = body
+
+    if (!items || items.length === 0) {
+      return NextResponse.json(
+        { error: "Nenhum item na venda" },
+        { status: 400 }
+      )
     }
 
-    const productIds = Array.from(new Set(items.map((item) => item.productId)))
+    if (!paymentMethod) {
+      return NextResponse.json(
+        { error: "Forma de pagamento nao informada" },
+        { status: 400 }
+      )
+    }
 
-    const { data: products, error: fetchError } = await supabaseAdmin
-      .from("products")
-      .select("id, name, stock, price")
+    // Verificar estoque de todos os produtos
+    const productIds = items.map((item) => item.productId)
+    const { data: products, error: productsError } = await supabase
+      .from("produtos")
+      .select("id, nome, estoque, preco")
       .in("id", productIds)
 
-    if (fetchError) {
-      return NextResponse.json({ error: "Erro ao buscar produtos para venda" }, { status: 500 })
+    if (productsError) {
+      console.error("[v0] Erro ao buscar produtos:", productsError)
+      return NextResponse.json(
+        { error: "Erro ao verificar estoque" },
+        { status: 500 }
+      )
     }
 
-    const productsById = new Map((products || []).map((product) => [product.id, product]))
-
+    // Verificar se ha estoque suficiente
+    const stockIssues: string[] = []
     for (const item of items) {
-      const product = productsById.get(item.productId)
-
+      const product = products?.find((p) => p.id === item.productId)
       if (!product) {
-        return NextResponse.json({ error: "Produto da venda nao encontrado" }, { status: 404 })
-      }
-
-      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-        return NextResponse.json({ error: "Quantidade invalida na venda" }, { status: 400 })
-      }
-
-      if (product.stock < item.quantity) {
-        return NextResponse.json(
-          { error: `Estoque insuficiente para ${product.name}` },
-          { status: 409 }
+        stockIssues.push(`Produto ${item.productName} nao encontrado`)
+      } else if (product.estoque < item.quantity) {
+        stockIssues.push(
+          `${item.productName}: estoque insuficiente (disponivel: ${product.estoque}, solicitado: ${item.quantity})`
         )
       }
     }
 
-    let salesHistoryUnavailable = false
+    if (stockIssues.length > 0) {
+      return NextResponse.json(
+        { error: "Problemas de estoque", details: stockIssues },
+        { status: 400 }
+      )
+    }
 
-    // Registrar vendas e atualizar estoque
-    for (const item of items) {
-      const product = productsById.get(item.productId)
-      if (!product) continue
-
-      const unitPrice = Number(product.price)
-      const totalPrice = unitPrice * item.quantity
-
-      // Registrar venda
-      if (!salesHistoryUnavailable) {
-        const { error: saleError } = await supabaseAdmin
-          .from("sales")
-          .insert({
-            product_id: item.productId,
-            quantity: item.quantity,
-            price: unitPrice,
-            total: totalPrice,
-            sold_at: new Date().toISOString(),
-          })
-
-        if (saleError) {
-          // Nao bloquear a venda por falha no historico; manter apenas aviso.
-          console.error("[v0] Erro ao registrar venda:", saleError)
-          salesHistoryUnavailable = true
-        }
-      }
-
-      // Atualizar estoque
-      const { error: updateError } = await supabaseAdmin
-        .from("products")
-        .update({
-          stock: product.stock - item.quantity,
-          updated_at: new Date().toISOString(),
+    // Criar uma venda para cada item usando a estrutura correta da tabela vendas
+    const salesPromises = items.map(async (item) => {
+      const { data, error } = await supabase
+        .from("vendas")
+        .insert({
+          id_do_produto: item.productId,
+          quantidade: item.quantity,
+          preco: item.unitPrice,
+          total: item.subtotal,
+          vendido_em: new Date().toISOString(),
         })
-        .eq("id", item.productId)
+        .select()
+        .single()
+      
+      return { data, error }
+    })
 
-      if (updateError) {
-        return NextResponse.json({ error: "Erro ao atualizar estoque" }, { status: 500 })
+    const salesResults = await Promise.all(salesPromises)
+    const saleError = salesResults.find(r => r.error)?.error
+
+    if (saleError) {
+      console.error("[v0] Erro ao criar venda:", saleError)
+      return NextResponse.json(
+        { error: "Erro ao registrar venda: " + saleError.message },
+        { status: 500 }
+      )
+    }
+
+    // Atualizar estoque dos produtos
+    for (const item of items) {
+      const product = products?.find((p) => p.id === item.productId)
+      if (product) {
+        const newStock = product.estoque - item.quantity
+        await supabase
+          .from("produtos")
+          .update({ 
+            estoque: newStock,
+          })
+          .eq("id", item.productId)
       }
     }
 
     return NextResponse.json({
       success: true,
-      warning: salesHistoryUnavailable
-        ? "Venda finalizada, mas o historico nao foi salvo. Verifique a tabela sales no banco"
-        : null,
+      message: "Venda finalizada com sucesso",
+      sale: {
+        total: total,
+        paymentMethod: paymentMethod,
+        itemCount: items.length,
+      },
     })
   } catch (error) {
-    console.error("[v0] Erro inesperado ao finalizar venda:", error)
-    return NextResponse.json({ error: "Erro ao finalizar venda" }, { status: 500 })
+    console.error("[v0] Erro no checkout:", error)
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    )
   }
 }
