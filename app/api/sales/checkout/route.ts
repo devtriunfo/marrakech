@@ -44,8 +44,8 @@ export async function POST(request: Request) {
     // Verificar estoque de todos os produtos
     const productIds = items.map((item) => item.productId)
     const { data: products, error: productsError } = await supabase
-      .from("products")
-      .select("id, name, stock, price")
+      .from("produtos")
+      .select("id, nome, estoque, preco")
       .in("id", productIds)
 
     if (productsError) {
@@ -62,9 +62,9 @@ export async function POST(request: Request) {
       const product = products?.find((p) => p.id === item.productId)
       if (!product) {
         stockIssues.push(`Produto ${item.productName} nao encontrado`)
-      } else if (product.stock < item.quantity) {
+      } else if (product.estoque < item.quantity) {
         stockIssues.push(
-          `${item.productName}: estoque insuficiente (disponivel: ${product.stock}, solicitado: ${item.quantity})`
+          `${item.productName}: estoque insuficiente (disponivel: ${product.estoque}, solicitado: ${item.quantity})`
         )
       }
     }
@@ -76,19 +76,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Criar uma venda para cada item (estrutura simples que funciona com a tabela existente)
+    // Criar uma venda para cada item usando a estrutura correta da tabela vendas
     const salesPromises = items.map(async (item) => {
       const { data, error } = await supabase
-        .from("sales")
+        .from("vendas")
         .insert({
-          product_id: item.productId,
-          product_name: item.productName,
-          barcode: item.barcode,
-          quantity: item.quantity,
-          unit_price: item.unitPrice,
+          id_do_produto: item.productId,
+          quantidade: item.quantity,
+          preco: item.unitPrice,
           total: item.subtotal,
-          payment_method: paymentMethod,
-          sold_at: new Date().toISOString(),
+          vendido_em: new Date().toISOString(),
         })
         .select()
         .single()
@@ -111,12 +108,11 @@ export async function POST(request: Request) {
     for (const item of items) {
       const product = products?.find((p) => p.id === item.productId)
       if (product) {
-        const newStock = product.stock - item.quantity
+        const newStock = product.estoque - item.quantity
         await supabase
-          .from("products")
+          .from("produtos")
           .update({ 
-            stock: newStock,
-            updated_at: new Date().toISOString()
+            estoque: newStock,
           })
           .eq("id", item.productId)
       }

@@ -5,11 +5,11 @@ export async function GET() {
   try {
     const supabase = await createClient()
 
-    // Buscar todas as vendas
-    const { data: sales, error: salesError } = await supabase
-      .from("sales")
+    // Buscar todas as vendas da tabela vendas
+    const { data: salesRaw, error: salesError } = await supabase
+      .from("vendas")
       .select("*")
-      .order("sold_at", { ascending: false })
+      .order("vendido_em", { ascending: false })
 
     if (salesError) {
       console.error("Erro ao buscar vendas:", salesError)
@@ -19,9 +19,20 @@ export async function GET() {
       )
     }
 
+    // Mapear vendas para formato padrao
+    const sales = salesRaw?.map((s) => ({
+      id: s.id,
+      product_id: s.id_do_produto,
+      quantity: s.quantidade,
+      unit_price: s.preco,
+      total: s.total,
+      sold_at: s.vendido_em,
+      payment_method: "nao_informado", // tabela nao tem essa coluna
+    })) || []
+
     // Buscar todos os produtos para calcular custo e lucro
-    const { data: products, error: productsError } = await supabase
-      .from("products")
+    const { data: productsRaw, error: productsError } = await supabase
+      .from("produtos")
       .select("*")
 
     if (productsError) {
@@ -31,6 +42,15 @@ export async function GET() {
         { status: 500 }
       )
     }
+
+    // Mapear produtos para formato padrao
+    const products = productsRaw?.map((p) => ({
+      id: p.id,
+      name: p.nome,
+      price: p.preco,
+      stock: p.estoque,
+      cost_price: null, // tabela nao tem essa coluna
+    })) || []
 
     // Criar mapa de produtos para acesso rápido
     const productMap = new Map(products?.map((p) => [p.id, p]) || [])
