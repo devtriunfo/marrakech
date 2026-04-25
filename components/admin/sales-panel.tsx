@@ -405,61 +405,6 @@ export function SalesPanel({ products }: SalesPanelProps) {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Produtos na Venda ({totalItems} itens)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {items.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-              <Package className="mx-auto mb-2 h-8 w-8" />
-              Nenhum produto adicionado ainda.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {items.map((item) => (
-                <div
-                  key={item.product.id}
-                  className="flex items-center justify-between rounded-lg border p-4 hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium">{item.product.name}</p>
-                    <div className="mt-1 flex gap-4 text-sm text-muted-foreground">
-                      <span>Codigo: {item.product.barcode || "Não cadastrado"}</span>
-                      <span>Preço: {formatPrice(parsePrice(item.product.price))}</span>
-                      <span>Estoque: {item.product.stock} un.</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Quantidade</p>
-                      <p className="text-lg font-semibold">{item.quantity}x</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Subtotal</p>
-                      <p className="text-lg font-semibold text-primary">
-                        {formatPrice(parsePrice(item.product.price) * item.quantity)}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => removeItem(item.product.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   )
 }
