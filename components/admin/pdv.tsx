@@ -41,6 +41,7 @@ import {
   Calendar,
   X,
 } from "lucide-react"
+import Image from "next/image"
 
 interface CartItem {
   product: Product
@@ -289,6 +290,19 @@ export function PDV({ products }: PDVProps) {
                       disabled={availableStock <= 0}
                       className="flex items-center gap-3 p-3 rounded-lg border text-left transition-colors hover:bg-accent/50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
+                      <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {product.image_url ? (
+                          <Image
+                            src={product.image_url}
+                            alt={product.name}
+                            width={56}
+                            height={56}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Package className="h-6 w-6 text-muted-foreground/50" />
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{product.name}</p>
                         <div className="flex items-center gap-2 mt-1">
