@@ -343,8 +343,8 @@ export function PDV({ products }: PDVProps) {
 
       {/* Coluna da Direita - Carrinho */}
       <div className="space-y-4">
-        <Card className="sticky top-4">
-          <CardHeader className="pb-3">
+        <Card className="sticky top-4 flex flex-col max-h-[calc(100vh-2rem)]">
+          <CardHeader className="pb-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <ShoppingCart className="h-5 w-5" />
@@ -366,7 +366,7 @@ export function PDV({ products }: PDVProps) {
               )}
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex-1 overflow-hidden flex flex-col gap-4">
             {cart.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">
                 <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -375,12 +375,13 @@ export function PDV({ products }: PDVProps) {
               </div>
             ) : (
               <>
-                <ScrollArea className="max-h-[250px]">
-                  <div className="space-y-3 pr-3">
+                {/* Itens do carrinho com scroll */}
+                <div className="flex-shrink-0 max-h-[180px] overflow-y-auto border rounded-lg">
+                  <div className="space-y-2 p-2">
                     {cart.map((item) => (
                       <div
                         key={item.product.id}
-                        className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                        className="flex items-center gap-2 p-2 rounded-lg border bg-card"
                       >
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">
@@ -394,18 +395,18 @@ export function PDV({ products }: PDVProps) {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-7 w-7"
+                            className="h-6 w-6"
                             onClick={() => updateQuantity(item.product.id, -1)}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="w-8 text-center font-medium">
+                          <span className="w-6 text-center font-medium text-sm">
                             {item.quantity}
                           </span>
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-7 w-7"
+                            className="h-6 w-6"
                             onClick={() => updateQuantity(item.product.id, 1)}
                             disabled={item.quantity >= item.product.stock}
                           >
@@ -415,20 +416,20 @@ export function PDV({ products }: PDVProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
                           onClick={() => removeFromCart(item.product.id)}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
 
-                <Separator />
+                <Separator className="flex-shrink-0" />
 
-                {/* Info do Cliente */}
-                <div className="space-y-3">
+                {/* Info do Cliente - com scroll */}
+                <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
                   <div>
                     <Label className="text-xs text-muted-foreground">
                       Cliente (opcional)
@@ -530,10 +531,10 @@ export function PDV({ products }: PDVProps) {
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="flex-shrink-0" />
 
-                {/* Totais */}
-                <div className="space-y-2">
+                {/* Totais - Sempre visivel */}
+                <div className="flex-shrink-0 space-y-2 bg-background pt-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span>{formatPrice(subtotal)}</span>
@@ -548,22 +549,22 @@ export function PDV({ products }: PDVProps) {
                     <span>Total</span>
                     <span className="text-primary">{formatPrice(total)}</span>
                   </div>
-                </div>
 
-                <Button
-                  className="w-full h-12 text-base"
-                  onClick={handleFinalizeSale}
-                  disabled={isSubmitting || cart.length === 0 || !paymentMethod}
-                >
-                  {isSubmitting ? (
-                    "Processando..."
-                  ) : (
-                    <>
-                      <Receipt className="h-5 w-5 mr-2" />
-                      Finalizar Venda
-                    </>
-                  )}
-                </Button>
+                  <Button
+                    className="w-full h-12 text-base mt-2"
+                    onClick={handleFinalizeSale}
+                    disabled={isSubmitting || cart.length === 0 || !paymentMethod}
+                  >
+                    {isSubmitting ? (
+                      "Processando..."
+                    ) : (
+                      <>
+                        <Receipt className="h-5 w-5 mr-2" />
+                        Finalizar Venda
+                      </>
+                    )}
+                  </Button>
+                </div>
               </>
             )}
           </CardContent>
