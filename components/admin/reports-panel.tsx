@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import {
@@ -6,9 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -19,66 +17,64 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts"
 import {
-  TrendingUp,
-  TrendingDown,
+  ShoppingCart,
   DollarSign,
   Package,
-  ShoppingCart,
-  BarChart3,
   RefreshCw,
   AlertTriangle,
-  Award,
-  Target,
-  Wallet,
-  PiggyBank,
-  ArrowUpRight,
-  ArrowDownRight,
+  Receipt,
 } from "lucide-react"
+
+interface DailySale {
+  date: string
+  revenue: number
+  count: number
+}
 
 interface ProductReport {
   product_id: string
   product_name: string
-  barcode: string | null
   total_quantity: number
   total_revenue: number
-  total_cost: number
-  total_profit: number
-  profit_margin: number
-  avg_unit_price: number
+}
+
+interface PaymentMethod {
+  payment_method: string
+  count: number
+  total: number
+}
+
+interface StockItem {
+  name: string
+  stock: number
+  price: number
 }
 
 interface ReportData {
   summary: {
     total_sales: number
     total_revenue: number
-    total_cost: number
-    total_profit: number
-    profit_margin: number
     avg_ticket: number
     total_products_sold: number
   }
+  daily_sales: DailySale[]
   top_selling: ProductReport[]
   least_selling: ProductReport[]
-  most_profitable: ProductReport[]
-  least_profitable: ProductReport[]
-  by_payment_method: {
-    payment_method: string
-    count: number
-    total: number
-  }[]
-  inventory_value: {
-    total_stock_value: number
-    total_cost_value: number
-    potential_profit: number
-  }
+  by_payment_method: PaymentMethod[]
+  stock_levels: StockItem[]
 }
 
 function formatPrice(value: number): string {
@@ -88,19 +84,46 @@ function formatPrice(value: number): string {
   }).format(value)
 }
 
-function formatPercent(value: number | undefined | null): string {
-  if (value === undefined || value === null || isNaN(value)) return "0.0%"
-  return `${value.toFixed(1)}%`
+function formatShortDate(dateStr: string): string {
+  const [, month, day] = dateStr.split("-")
+  return `${day}/${month}`
 }
 
 function getPaymentMethodLabel(method: string): string {
   const labels: Record<string, string> = {
     dinheiro: "Dinheiro",
     pix: "PIX",
-    credito: "Cartao de Credito",
-    debito: "Cartao de Debito",
+    credito: "Credito",
+    debito: "Debito",
+    nao_informado: "Outros",
   }
   return labels[method] || method
+}
+
+const PIE_COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#6366f1"]
+
+function CustomTooltipRevenue({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-background border rounded-lg p-3 shadow-lg text-sm">
+        <p className="font-medium mb-1">{label}</p>
+        <p className="text-primary">{formatPrice(payload[0].value)}</p>
+      </div>
+    )
+  }
+  return null
+}
+
+function CustomTooltipQty({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-background border rounded-lg p-3 shadow-lg text-sm">
+        <p className="font-medium mb-1">{label}</p>
+        <p>{payload[0].value} unidades</p>
+      </div>
+    )
+  }
+  return null
 }
 
 export function ReportsPanel() {
@@ -137,6 +160,7 @@ export function ReportsPanel() {
 
   useEffect(() => {
     fetchReports()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period])
 
   if (loading) {
@@ -154,6 +178,11 @@ export function ReportsPanel() {
             </Card>
           ))}
         </div>
+        <Skeleton className="h-64 w-full rounded-xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
       </div>
     )
   }
@@ -166,11 +195,7 @@ export function ReportsPanel() {
             <AlertTriangle className="h-5 w-5" />
             <p>{error}</p>
           </div>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => fetchReports()}
-          >
+          <Button variant="outline" className="mt-4" onClick={() => fetchReports()}>
             Tentar Novamente
           </Button>
         </CardContent>
@@ -180,26 +205,57 @@ export function ReportsPanel() {
 
   if (!data) return null
 
-  const { summary, top_selling, least_selling, most_profitable, least_profitable, by_payment_method, inventory_value } = data
+  const {
+    summary,
+    daily_sales = [],
+    top_selling = [],
+    least_selling = [],
+    by_payment_method = [],
+    stock_levels = [],
+  } = data
+
+  const topSellingChart = top_selling.slice(0, 10).map((p) => ({
+    name: p.product_name.length > 18 ? p.product_name.slice(0, 18) + "..." : p.product_name,
+    fullName: p.product_name,
+    qty: p.total_quantity,
+    revenue: p.total_revenue,
+  }))
+
+  const paymentChart = by_payment_method.map((m, i) => ({
+    name: getPaymentMethodLabel(m.payment_method),
+    value: m.total,
+    count: m.count,
+    color: PIE_COLORS[i % PIE_COLORS.length],
+  }))
+
+  const lowStockChart = stock_levels.slice(0, 12).map((p) => ({
+    name: p.name.length > 16 ? p.name.slice(0, 16) + "..." : p.name,
+    fullName: p.name,
+    stock: p.stock,
+  }))
+
+  const leastSellingChart = least_selling.slice(0, 10).map((p) => ({
+    name: p.product_name.length > 18 ? p.product_name.slice(0, 18) + "..." : p.product_name,
+    fullName: p.product_name,
+    qty: p.total_quantity,
+  }))
 
   return (
     <div className="space-y-6">
-      {/* Filtros e Acoes */}
+      {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Periodo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Ultimos 7 dias</SelectItem>
-              <SelectItem value="30">Ultimos 30 dias</SelectItem>
-              <SelectItem value="90">Ultimos 90 dias</SelectItem>
-              <SelectItem value="365">Ultimo ano</SelectItem>
-              <SelectItem value="all">Todo periodo</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={period} onValueChange={setPeriod}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Periodo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7">Ultimos 7 dias</SelectItem>
+            <SelectItem value="30">Ultimos 30 dias</SelectItem>
+            <SelectItem value="90">Ultimos 90 dias</SelectItem>
+            <SelectItem value="365">Ultimo ano</SelectItem>
+            <SelectItem value="all">Todo periodo</SelectItem>
+          </SelectContent>
+        </Select>
         <Button
           variant="outline"
           size="sm"
@@ -239,124 +295,201 @@ export function ReportsPanel() {
             <div className="text-2xl font-bold text-primary">
               {formatPrice(summary.total_revenue)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Ticket medio: {formatPrice(summary.avg_ticket)}
-            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Custo Total
+              Ticket Medio
             </CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
+            <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-500">
-              {formatPrice(summary.total_cost)}
+            <div className="text-2xl font-bold">
+              {formatPrice(summary.avg_ticket)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Valor investido em produtos vendidos
-            </p>
+            <p className="text-xs text-muted-foreground">por venda</p>
           </CardContent>
         </Card>
 
-        <Card className={summary.total_profit >= 0 ? "border-green-500/30" : "border-red-500/30"}>
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Lucro Total
+              Produtos em Estoque
             </CardTitle>
-            <PiggyBank className={`h-4 w-4 ${summary.total_profit >= 0 ? "text-green-500" : "text-red-500"}`} />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${summary.total_profit >= 0 ? "text-green-500" : "text-red-500"}`}>
-              {formatPrice(summary.total_profit)}
-            </div>
-            <div className="flex items-center gap-1 text-xs">
-              {summary.profit_margin >= 0 ? (
-                <ArrowUpRight className="h-3 w-3 text-green-500" />
-              ) : (
-                <ArrowDownRight className="h-3 w-3 text-red-500" />
-              )}
-              <span className={summary.profit_margin >= 0 ? "text-green-500" : "text-red-500"}>
-                {formatPercent(summary.profit_margin)} de margem
-              </span>
-            </div>
+            <div className="text-2xl font-bold">{stock_levels.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {stock_levels.filter((p) => p.stock === 0).length} sem estoque
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Valor do Estoque */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Valor do Estoque Atual
-          </CardTitle>
-          <CardDescription>
-            Resumo do valor investido e potencial de lucro do estoque atual
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg bg-secondary">
-              <p className="text-sm text-muted-foreground">Valor de Venda (Estoque)</p>
-              <p className="text-xl font-bold">{formatPrice(inventory_value.total_stock_value)}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-secondary">
-              <p className="text-sm text-muted-foreground">Custo Total (Investido)</p>
-              <p className="text-xl font-bold text-orange-500">{formatPrice(inventory_value.total_cost_value)}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-green-100 dark:bg-green-900/20">
-              <p className="text-sm text-muted-foreground">Lucro Potencial</p>
-              <p className="text-xl font-bold text-green-600">{formatPrice(inventory_value.potential_profit)}</p>
-            </div>
+      {/* Cards por Forma de Pagamento */}
+      {(() => {
+        const methods = [
+          { key: "pix", label: "PIX", color: "text-green-600" },
+          { key: "dinheiro", label: "Dinheiro", color: "text-yellow-600" },
+          { key: "credito", label: "Cartao de Credito", color: "text-blue-600" },
+          { key: "debito", label: "Cartao de Debito", color: "text-purple-600" },
+        ]
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {methods.map(({ key, label, color }) => {
+              const entry = by_payment_method.find((m) => m.payment_method === key)
+              return (
+                <Card key={key}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-xl font-bold ${color}`}>
+                      {formatPrice(entry?.total ?? 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {entry?.count ?? 0} venda{(entry?.count ?? 0) !== 1 ? "s" : ""}
+                    </p>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
-        </CardContent>
-      </Card>
+        )
+      })()}
 
-      {/* Grid de Tabelas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Produtos Mais Vendidos */}
+      {/* Faturamento por Dia */}
+      {daily_sales.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-500" />
-              Produtos Mais Vendidos
-            </CardTitle>
+            <CardTitle className="text-base">Faturamento por Dia</CardTitle>
           </CardHeader>
           <CardContent>
-            {top_selling.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">Nenhuma venda registrada</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={daily_sales} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={formatShortDate}
+                  tick={{ fontSize: 11 }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tickFormatter={(v) => `R$${v}`}
+                  tick={{ fontSize: 11 }}
+                  width={64}
+                />
+                <Tooltip content={<CustomTooltipRevenue />} />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Graficos lado a lado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Produtos Mais Vendidos */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Produtos Mais Vendidos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topSellingChart.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">Nenhuma venda registrada</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Qtd</TableHead>
-                    <TableHead className="text-right">Receita</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {top_selling.map((product, index) => (
-                    <TableRow key={product.product_id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {index === 0 && <Award className="h-4 w-4 text-yellow-500" />}
-                          <span className="font-medium">{product.product_name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">{product.total_quantity}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatPrice(product.total_revenue)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={topSellingChart}
+                  layout="vertical"
+                  margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 11 }}
+                    width={110}
+                  />
+                  <Tooltip content={<CustomTooltipQty />} />
+                  <Bar dataKey="qty" fill="#10b981" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Formas de Pagamento */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Formas de Pagamento</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {paymentChart.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">Nenhuma venda registrada</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={paymentChart}
+                    cx="50%"
+                    cy="45%"
+                    outerRadius={90}
+                    dataKey="value"
+                    label={({ name, percent }) =>
+                      `${name} ${(percent * 100).toFixed(0)}%`
+                    }
+                    labelLine={false}
+                  >
+                    {paymentChart.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) => [formatPrice(value), "Total"]}
+                  />
+                  <Legend
+                    formatter={(value) => <span className="text-xs">{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Estoque Atual - menor para maior */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Estoque Atual (Menor para Maior)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lowStockChart.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">Nenhum produto cadastrado</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={lowStockChart}
+                  layout="vertical"
+                  margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 11 }}
+                    width={110}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [`${value} unidades`, "Estoque"]}
+                  />
+                  <Bar dataKey="stock" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
@@ -364,164 +497,34 @@ export function ReportsPanel() {
         {/* Produtos Menos Vendidos */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-red-500" />
-              Produtos Menos Vendidos
-            </CardTitle>
+            <CardTitle className="text-base">Produtos Menos Vendidos</CardTitle>
           </CardHeader>
           <CardContent>
-            {least_selling.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">Nenhuma venda registrada</p>
+            {leastSellingChart.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">Nenhuma venda registrada</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Qtd</TableHead>
-                    <TableHead className="text-right">Receita</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {least_selling.map((product) => (
-                    <TableRow key={product.product_id}>
-                      <TableCell>
-                        <span className="font-medium">{product.product_name}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline">{product.total_quantity}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatPrice(product.total_revenue)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Maior Lucro */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-green-500" />
-              Produtos com Maior Lucro
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {most_profitable.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">Nenhuma venda registrada</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Lucro</TableHead>
-                    <TableHead className="text-right">Margem</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {most_profitable.map((product, index) => (
-                    <TableRow key={product.product_id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {index === 0 && <Award className="h-4 w-4 text-green-500" />}
-                          <span className="font-medium">{product.product_name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
-                        {formatPrice(product.total_profit)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                          {formatPercent(product.profit_margin)}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Menor Lucro */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Produtos com Menor Lucro
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {least_profitable.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">Nenhuma venda registrada</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Lucro</TableHead>
-                    <TableHead className="text-right">Margem</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {least_profitable.map((product) => (
-                    <TableRow key={product.product_id}>
-                      <TableCell>
-                        <span className="font-medium">{product.product_name}</span>
-                      </TableCell>
-                      <TableCell className={`text-right font-medium ${product.total_profit >= 0 ? "text-orange-500" : "text-red-500"}`}>
-                        {formatPrice(product.total_profit)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline" className={product.profit_margin < 10 ? "border-orange-500 text-orange-500" : ""}>
-                          {formatPercent(product.profit_margin)}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={leastSellingChart}
+                  layout="vertical"
+                  margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 11 }}
+                    width={110}
+                  />
+                  <Tooltip content={<CustomTooltipQty />} />
+                  <Bar dataKey="qty" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Vendas por Forma de Pagamento */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Vendas por Forma de Pagamento
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {by_payment_method.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">Nenhuma venda registrada</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {by_payment_method.map((method) => (
-                <div
-                  key={method.payment_method}
-                  className="p-4 rounded-lg border bg-card"
-                >
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {getPaymentMethodLabel(method.payment_method)}
-                  </p>
-                  <p className="text-2xl font-bold mt-1">
-                    {formatPrice(method.total)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {method.count} venda{method.count !== 1 ? "s" : ""}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   )
 }
