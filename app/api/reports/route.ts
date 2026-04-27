@@ -21,6 +21,10 @@ interface NormalizedProduct {
   image_url: string | null
 }
 
+function toLocalDate(dateStr: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(dateStr))
+}
+
 function getPeriodStart(period: string | null) {
   if (!period || period === "all") {
     return null
@@ -85,7 +89,7 @@ async function loadSales(
 
     const dailyMap: Record<string, { date: string; revenue: number; count: number }> = {}
     for (const sale of salesRows || []) {
-      const date = String(sale.sold_at).slice(0, 10)
+      const date = toLocalDate(String(sale.sold_at))
       if (!dailyMap[date]) dailyMap[date] = { date, revenue: 0, count: 0 }
       dailyMap[date].revenue += Number(sale.total ?? 0)
       dailyMap[date].count += 1
@@ -132,7 +136,7 @@ async function loadSales(
 
   const dailyMap: Record<string, { date: string; revenue: number; count: number }> = {}
   for (const item of saleItems) {
-    const date = item.sold_at.slice(0, 10)
+    const date = toLocalDate(item.sold_at)
     if (!dailyMap[date]) dailyMap[date] = { date, revenue: 0, count: 0 }
     dailyMap[date].revenue += item.total
     dailyMap[date].count += 1
@@ -324,8 +328,8 @@ export async function GET(request: NextRequest) {
           .map((p) => ({ name: p.name, stock: p.stock, price: p.price }))
           .sort((a, b) => a.stock - b.stock),
         today_sales: (() => {
-          const today = new Date().toISOString().slice(0, 10)
-          const todayItems = saleItems.filter((s) => s.sold_at.slice(0, 10) === today)
+          const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+          const todayItems = saleItems.filter((s) => toLocalDate(s.sold_at) === today)
           const todayMap: Record<string, { product_id: string; product_name: string; image_url: string | null; quantity: number; revenue: number }> = {}
           for (const item of todayItems) {
             const product = productMap.get(item.product_id)

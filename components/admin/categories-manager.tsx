@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -50,7 +49,6 @@ export function CategoriesManager({ categories }: CategoriesManagerProps) {
   const [deleting, setDeleting] = useState(false)
   
   const router = useRouter()
-  const supabase = createClient()
 
   const openCreateDialog = () => {
     setEditingCategory(null)
@@ -80,21 +78,25 @@ export function CategoriesManager({ categories }: CategoriesManagerProps) {
     setSaving(true)
 
     try {
-      const data = {
+      const body = {
         name,
         slug: slug.toLowerCase().replace(/\s+/g, "-"),
         icon: icon || null,
+        ...(editingCategory ? { id: editingCategory.id } : {}),
       }
 
-      if (editingCategory) {
-        await supabase
-          .from("categories")
-          .update(data)
-          .eq("id", editingCategory.id)
-      } else {
-        await supabase
-          .from("categories")
-          .insert(data)
+      const res = await fetch(
+        "/api/admin/categories",
+        {
+          method: editingCategory ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      )
+
+      if (!res.ok) {
+        const result = await res.json()
+        throw new Error(result.error || "Erro ao salvar categoria")
       }
 
       setDialogOpen(false)
@@ -108,8 +110,8 @@ export function CategoriesManager({ categories }: CategoriesManagerProps) {
     if (!deleteId) return
     setDeleting(true)
 
-    await supabase.from("categories").delete().eq("id", deleteId)
-    
+    await fetch(`/api/admin/categories?id=${deleteId}`, { method: "DELETE" })
+
     setDeleteId(null)
     setDeleting(false)
     router.refresh()

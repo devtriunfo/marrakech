@@ -4,11 +4,16 @@ import { StoreContent } from '@/components/store-content'
 
 export const revalidate = 60 // Revalidate every 60 seconds
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ categoria?: string }>
+}) {
   if (!hasSupabaseConfig()) {
     return <StoreContent initialProducts={[]} initialCategories={[]} />
   }
 
+  const { categoria } = await searchParams
   const supabase = await createClient()
   
   const { data: products } = await supabase
@@ -23,7 +28,7 @@ export default async function Home() {
     .eq("is_active", true)
     .order("name")
   
-  const { data: categories } = await supabase
+  const { data: categoriesRaw } = await supabase
     .from("categories")
     .select("*")
     .order("name")
@@ -38,7 +43,8 @@ export default async function Home() {
   return (
     <StoreContent 
       initialProducts={transformedProducts} 
-      initialCategories={categories || []} 
+      initialCategories={categoriesRaw || []}
+      initialCategory={categoria}
     />
   )
 }

@@ -15,15 +15,22 @@ import type { Product, Category } from '@/lib/types'
 interface StoreContentProps {
   initialProducts: Product[]
   initialCategories: Category[]
+  initialCategory?: string
 }
 
-function StoreMain({ initialProducts, initialCategories }: StoreContentProps) {
+function StoreMain({ initialProducts, initialCategories, initialCategory }: StoreContentProps) {
   const [cartOpen, setCartOpen] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'all')
   const productsRef = useRef<HTMLDivElement>(null)
 
+  const visibleCategories = initialCategories.filter((c) => !/pod/i.test(c.name))
+
+  const podCategorySlugs = new Set(
+    initialCategories.filter((c) => /pod/i.test(c.name)).map((c) => c.slug),
+  )
+
   const filteredProducts = selectedCategory === 'all'
-    ? initialProducts
+    ? initialProducts.filter((p) => !podCategorySlugs.has(p.category_slug ?? ''))
     : initialProducts.filter(product => product.category_slug === selectedCategory)
 
   const handleCategoryClick = (slug: string) => {
@@ -44,7 +51,7 @@ function StoreMain({ initialProducts, initialCategories }: StoreContentProps) {
       <Header 
         onCartClick={() => setCartOpen(true)} 
         onCategoryClick={handleCategoryClick}
-        categories={initialCategories}
+        categories={visibleCategories}
       />
 
       <main className="flex-1">
@@ -53,7 +60,7 @@ function StoreMain({ initialProducts, initialCategories }: StoreContentProps) {
         <CategorySection
           selectedCategory={selectedCategory}
           onCategoryChange={handleCategoryClick}
-          categories={initialCategories}
+          categories={visibleCategories}
         />
 
         {/* Products Grid */}
@@ -139,10 +146,10 @@ function StoreMain({ initialProducts, initialCategories }: StoreContentProps) {
   )
 }
 
-export function StoreContent({ initialProducts, initialCategories }: StoreContentProps) {
+export function StoreContent({ initialProducts, initialCategories, initialCategory }: StoreContentProps) {
   return (
     <CartProvider>
-      <StoreMain initialProducts={initialProducts} initialCategories={initialCategories} />
+      <StoreMain initialProducts={initialProducts} initialCategories={initialCategories} initialCategory={initialCategory} />
     </CartProvider>
   )
 }

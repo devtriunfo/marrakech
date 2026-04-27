@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -35,7 +34,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [minStock, setMinStock] = useState(product?.min_stock?.toString() || "")
   const [categoryId, setCategoryId] = useState(product?.category_id || "")
   const [imageUrl, setImageUrl] = useState(product?.image_url || "")
-  const [isActive, setIsActive] = useState(product?.is_active ?? true)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -89,7 +87,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         min_stock: minStock ? parseInt(minStock) : null,
         category_id: categoryId || null,
         image_url: imageUrl || null,
-        is_active: isActive,
         updated_at: new Date().toISOString(),
       }
 
@@ -246,14 +243,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <Switch
-                  id="is_active"
-                  checked={isActive}
-                  onCheckedChange={setIsActive}
-                />
-                <Label htmlFor="is_active">Produto ativo (visível na loja)</Label>
-              </div>
+
             </CardContent>
           </Card>
         </div>
