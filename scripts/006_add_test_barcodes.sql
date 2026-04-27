@@ -13,3 +13,4 @@ WHERE id = (SELECT id FROM products WHERE is_active = true ORDER BY created_at L
 UPDATE products
 SET barcode = '7891234567892'
 WHERE id = (SELECT id FROM products WHERE is_active = true ORDER BY created_at LIMIT 1 OFFSET 2);
+--test
