@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import {
   Card,
   CardContent,
@@ -63,6 +64,14 @@ interface StockItem {
   price: number
 }
 
+interface TodaySaleItem {
+  product_id: string
+  product_name: string
+  image_url: string | null
+  quantity: number
+  revenue: number
+}
+
 interface ReportData {
   summary: {
     total_sales: number
@@ -75,6 +84,7 @@ interface ReportData {
   least_selling: ProductReport[]
   by_payment_method: PaymentMethod[]
   stock_levels: StockItem[]
+  today_sales: TodaySaleItem[]
 }
 
 function formatPrice(value: number): string {
@@ -212,6 +222,7 @@ export function ReportsPanel() {
     least_selling = [],
     by_payment_method = [],
     stock_levels = [],
+    today_sales = [],
   } = data
 
   const topSellingChart = top_selling.slice(0, 10).map((p) => ({
@@ -360,6 +371,44 @@ export function ReportsPanel() {
           </div>
         )
       })()}
+
+      {/* Vendas do Dia */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Vendas de Hoje</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {today_sales.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">Nenhuma venda registrada hoje</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {today_sales.map((item) => (
+                <div
+                  key={item.product_id}
+                  className="flex flex-col items-center gap-2 rounded-xl border bg-muted/30 p-3 text-center"
+                >
+                  <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                    {item.image_url ? (
+                      <Image
+                        src={item.image_url}
+                        alt={item.product_name}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    ) : (
+                      <Package className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <p className="text-xs font-medium leading-tight line-clamp-2">{item.product_name}</p>
+                  <span className="text-sm font-bold text-primary">{item.quantity}x</span>
+                  <span className="text-xs text-muted-foreground">{formatPrice(item.revenue)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Faturamento por Dia */}
       {daily_sales.length > 0 && (

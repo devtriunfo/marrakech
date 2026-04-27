@@ -18,6 +18,7 @@ interface NormalizedProduct {
   price: number
   stock: number
   cost_price: string | null
+  image_url: string | null
 }
 
 function getPeriodStart(period: string | null) {
@@ -154,7 +155,7 @@ async function loadSales(
 async function loadProducts(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: productsRows, error: productsError } = await supabase
     .from("products")
-    .select("id, name, price, stock, cost_price")
+    .select("id, name, price, stock, cost_price, image_url")
 
   if (!productsError) {
     return (productsRows || []).map((product) => ({
@@ -163,6 +164,7 @@ async function loadProducts(supabase: Awaited<ReturnType<typeof createClient>>) 
       price: Number(product.price ?? 0),
       stock: Number(product.stock ?? 0),
       cost_price: product.cost_price ? String(product.cost_price) : null,
+      image_url: product.image_url ? String(product.image_url) : null,
     })) satisfies NormalizedProduct[]
   }
 
@@ -184,6 +186,7 @@ async function loadProducts(supabase: Awaited<ReturnType<typeof createClient>>) 
     price: Number(product.preco ?? 0),
     stock: Number(product.estoque ?? 0),
     cost_price: null,
+    image_url: null,
   })) satisfies NormalizedProduct[]
 }
 
@@ -320,6 +323,26 @@ export async function GET(request: NextRequest) {
         stock_levels: products
           .map((p) => ({ name: p.name, stock: p.stock, price: p.price }))
           .sort((a, b) => a.stock - b.stock),
+        today_sales: (() => {
+          const today = new Date().toISOString().slice(0, 10)
+          const todayItems = saleItems.filter((s) => s.sold_at.slice(0, 10) === today)
+          const todayMap: Record<string, { product_id: string; product_name: string; image_url: string | null; quantity: number; revenue: number }> = {}
+          for (const item of todayItems) {
+            const product = productMap.get(item.product_id)
+            if (!todayMap[item.product_id]) {
+              todayMap[item.product_id] = {
+                product_id: item.product_id,
+                product_name: item.product_name || product?.name || "Produto Desconhecido",
+                image_url: product?.image_url ?? null,
+                quantity: 0,
+                revenue: 0,
+              }
+            }
+            todayMap[item.product_id].quantity += item.quantity
+            todayMap[item.product_id].revenue += item.total
+          }
+          return Object.values(todayMap).sort((a, b) => b.quantity - a.quantity)
+        })(),
         inventory_value: {
           total_stock_value: totalInventoryValue,
           total_cost_value: totalInventoryCost,
