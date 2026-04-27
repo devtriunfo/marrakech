@@ -23,14 +23,18 @@ function StoreMain({ initialProducts, initialCategories, initialCategory }: Stor
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'all')
   const productsRef = useRef<HTMLDivElement>(null)
 
-  const visibleCategories = initialCategories.filter((c) => !/pod/i.test(c.name))
+  const HIDDEN_NAMES = ['pods']
 
-  const podCategorySlugs = new Set(
-    initialCategories.filter((c) => /pod/i.test(c.name)).map((c) => c.slug),
+  const hiddenSlugs = new Set(
+    initialCategories
+      .filter((c) => HIDDEN_NAMES.some((n) => c.name.toLowerCase().includes(n) || c.slug.toLowerCase().includes(n)))
+      .map((c) => c.slug)
   )
 
+  const visibleCategories = initialCategories.filter((c) => !hiddenSlugs.has(c.slug))
+
   const filteredProducts = selectedCategory === 'all'
-    ? initialProducts.filter((p) => !podCategorySlugs.has(p.category_slug ?? ''))
+    ? initialProducts.filter((p) => !hiddenSlugs.has(p.category_slug ?? ''))
     : initialProducts.filter(product => product.category_slug === selectedCategory)
 
   const handleCategoryClick = (slug: string) => {
