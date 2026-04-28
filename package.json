@@ -1,12 +1,54 @@
 {
-  "name": "my-project",
-  "version": "0.1.0",
+  "name": "marrakech",
+  "version": "1.0.0",
   "private": true,
+  "main": "electron-main.js",
+  "bin": "server.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "electron": "electron .",
+    "electron-dev": "npm run build && electron .",
+    "build:exe": "npm run build && electron-builder --win --publish never"
+  },
+  "build": {
+    "appId": "com.marrakech.app",
+    "productName": "Marrakech",
+    "icon": "icon.ico",
+    "files": [
+      "electron-main.js",
+      "server.js",
+      "icon.ico",
+      ".next/**/*",
+      "node_modules/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Marrakech"
+    }
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -67,6 +109,13 @@
     "@types/node": "^22",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "electron": "^41.3.0",
+    "electron-builder": "^26.8.1",
+    "electron-is-dev": "^3.0.1",
+    "nexe": "5.0.0-beta.4",
+    "nw": "^0.111.0",
+    "open": "^11.0.0",
+    "pkg": "^5.8.1",
     "postcss": "^8.5",
     "tailwindcss": "^4.2.0",
     "tw-animate-css": "1.3.3",

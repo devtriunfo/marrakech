@@ -1,0 +1,68 @@
+═════════════════════════════════════════════════════════════════
+                    MARRAKECH - Admin Dashboard
+                           GUIA RÁPIDO
+═════════════════════════════════════════════════════════════════
+
+✅ PRÉ-REQUISITO: Node.js
+   
+   1. Acesse: https://nodejs.org
+   2. Baixe a versão LTS (Long Term Support)
+   3. Execute o instalador
+   4. ⭐ IMPORTANTE: Marque "Add to PATH" ⭐
+   5. Reinicie seu computador
+
+═════════════════════════════════════════════════════════════════
+
+🚀 PRIMEIRA VEZ:
+
+   1. Extraia todos os arquivos desta pasta para um local desejado
+   2. Duplo clique em:  INSTALAR_E_EXECUTAR.bat
+   3. Aguarde a instalação (2-3 minutos)
+   4. Abra seu navegador em: http://localhost:3000/admin/login
+
+═════════════════════════════════════════════════════════════════
+
+⚡ PRÓXIMAS VEZES:
+
+   Duplo clique em: INICIAR_SERVIDOR.bat
+   
+   (Muito mais rápido!)
+
+═════════════════════════════════════════════════════════════════
+
+📋 ESTRUTURA DA PASTA (não deletar):
+
+   ✓ INSTALAR_E_EXECUTAR.bat    ← Execute primeiro
+   ✓ INICIAR_SERVIDOR.bat       ← Use depois
+   ✓ package.json               ← Dependências
+   ✓ .env                        ← Configurações
+   ✓ Demais arquivos            ← Aplicação
+
+═════════════════════════════════════════════════════════════════
+
+⚠️  IMPORTANTE:
+
+   • Deixe o terminal ABERTO enquanto usar o app
+   • Não delete nenhum arquivo da pasta
+   • Primeira execução é mais lenta (normal!)
+   • Se tiver erro, leia o arquivo README.md
+
+═════════════════════════════════════════════════════════════════
+
+🆘 PROBLEMAS?
+
+   Problema: "Node.js não foi encontrado"
+   Solução: Instale Node.js e reinicie o computador
+   
+   Problema: "Porta 3000 em uso"
+   Solução: Feche o app anterior ou use outra porta
+
+═════════════════════════════════════════════════════════════════
+
+📱 ACESSO REMOTO?
+
+   Se quiser acessar de outro PC na rede:
+   - Troque localhost por: http://IP_DO_PC:3000/admin/login
+   - Exemplo: http://192.168.1.5:3000/admin/login
+
+═════════════════════════════════════════════════════════════════
